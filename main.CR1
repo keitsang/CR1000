@@ -43,53 +43,43 @@
 'Date:
 'Program author:
 
-StationName ("minimet")
+StationName ("17-04 2023")
 
 'Declare Constants
 Const SCANRATE = 5
 Const STIMEOUT = 500
 
-Const VANCOR = 0
-Const MAGDEC = -11.66
-'2022-04-22	11.66° W  ± 0.39°  changing by  0.04° E per year
-
-'Latitude: 43.5161° North
-'Longitude: 77.0537° West
-'Date: 2020-03-12
-'Magnetic declination: 11° 53.28' West
-'Annual Change (minutes/year): 1.3 '/y East
-'Grid Declination: 10° 28.42' West
-'Convergence Angle: 1° 24.86' West
+Const VANCOR = 180
+Const MAGDEC = -10.40
+'Latitude: 	43.7206° N
+'Longitude: 	79.1722° W
+'2023-03-08
+'10.40° W  ± 0.39°  changing by  0.03° E per year 
 
 Const SIGMA = 5.67 * 10^-8
 Const A = 1.0295 * 10^-3
 Const B = 2.391 * 10^-4
 Const C = 1.568 * 10^-7
 
-Const PSP = 8.11 '19230
-Const PIR = 3.04 '33933
-
-Const SETRAMULT = 0.005197  '6978526, cert 10965, y = 0.005197x + 79.997960
-Const SETRAOFF = 79.997960
-Const RHMULT = 0.092009  '51377102/139137, cert 11015, y = 0.092009x + 8.382074
-Const RHOFF = 8.382074
-Const RTMULT = 0.099242  'cert 10995, y = 0.099242x - 39.765935
-Const RTOFF = -39.765935
-Const PARMULT = 6.2447e-4  '20580, 1/22/2020
-Const PAROFF = 156.11607
+Const SETRAMULT = 0.005992 'S/N 6325739, 10963, y = 0.005992x + 79.947997
+Const SETRAOFF = 79.947997
+Const RHMULT = 0.095472  '61218069, 11024, y = 0.095472x + 7.218101
+Const RHOFF = 7.218101
+Const RTMULT = 0.100434  '61218069, 11006, y = 0.100434x - 40.293004
+Const RTOFF = -40.293004
+Const PARMULT = 6.5544e-4  '20580, 1/19/2023
+Const PAROFF = 160.47858
 
 'Declare Public Variables
 Public Windspeed,VanDir,WDCalcul,Buoy_Dir
 Public WaterTemp
 Public AirTemp,RelHum,BarPress, PAR
-Public SolarRad,PIR_F,PIRcor_F,PIRcor_FG,TEppley(2),Vt(2)
-Public AirTemp_V,RelHum_V,BarPress_V,SolarRad_V,PIR_F_V, PAR_V
+Public AirTemp_V,RelHum_V,BarPress_V, PAR_V
 Public PanTemp,BattVolt,Sig,LoggerVolt
 Public LoggerID As Long
 Public ModemOn = True
 
 'Declare Private Variables
-Dim Work1(2),Work2(2),i1
 Dim MeanWS
 Dim VectorWS
 Dim VectorWD
@@ -106,11 +96,6 @@ Units Windspeed=m/s
 Units VanDir=Dir
 Units WDCalcul=Dir T
 Units Buoy_Dir=Deg T
-Units SolarRad=kJ/m^2
-Units PIRcor_FG=kJ/m^2
-Units PIRcor_F=W/m^2
-Units PIR_F=W/m^2
-Units TEppley=Deg C
 Units BarPress=kPa
 Units PanTemp=Deg C
 Units BattVolt=V
@@ -118,8 +103,6 @@ Units LoggerVolt=V
 Units AirTemp_V=V
 Units RelHum_V=V
 Units BarPress_V=V
-Units SolarRad_V=V
-Units PIR_F_V=V
 Units PAR=uE/m^2sec
 Units PAR_V=V
 
@@ -129,10 +112,8 @@ Include "tables.cr1"
 
 'Main Program
 BeginProg
-  SerialOpen (ComMe,19200,0,0,10000)
   Scan (SCANRATE,Sec,0,0)
-
-
+    
     ' Read RM Young Wind Vane
     BrHalf(VanDir,1,mV2500,1,VX1,1,2500,True,0,250,355,0)
     VanDir = (VanDir + VANCOR) MOD 360
@@ -159,25 +140,6 @@ BeginProg
     'Read PAR Sensor
     VoltDiff(PAR_V,1,mV2500,5,true,0,250,1,0)
     PAR = PAR_V * 1/(1000*PARMULT) + PAROFF
-
-    ' Read Eppley Pyranometer PSP
-    VoltDiff(SolarRad_V,1,mV250,4,true,0,250,1,0)
-    SolarRad = SolarRad_V * 5 / PSP
-
-    ' Read Eppley Pygeometer PIR
-    VoltDiff(PIR_F_V,1,mV250,6,true,0,250,1,0)
-    PIR_F = PIR_F_V * 1000 / PIR
-    ' Read Eppley Pygeometer Case and Dome temperture
-    BrHalf (Vt,2,mV2500,13,Vx2,2,508,False,10000,250,1.0,0)
-    ' Convert voltage ratios to temperatue
-    For i1 = 1 To 2
-      Work1(i1) = 10000 * (Vt(i1) / (1 -Vt(i1)))
-      Work2(i1) = 1 / (A + B *LN(Work1(i1)) + C * (LN(Work1(i1))^3)) ' Work2 in deg K
-      TEppley(i1) = Work2(i1)-273.15 ' Tcase and Tdome in deg C
-    Next i1
-    'Correct PIR for case and dome temperature
-    PIRcor_F = PIR_F + (0.99 * SIGMA * Work2(1) ^ 4) - (3.7 * SIGMA * (Work2(2)^4-Work2(1)^4)) ' W/m^2
-    PIRcor_FG = PIRcor_F * SCANRATE/1000 ' Convert from W/m^2 to KJ/m^2 (5 second scan rate)
 
     'Station battery voltage
     VoltDiff (BattVolt,1,mV5000,8,True ,0,250,.01,0)
