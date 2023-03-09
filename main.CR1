@@ -160,8 +160,6 @@ BeginProg
   NextScan
 
   Include "compass.cr1"
-  
-  Include "gps.cr1"
 
 EndProg
 
