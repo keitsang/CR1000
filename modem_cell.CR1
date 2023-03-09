@@ -1,0 +1,15 @@
+     'Power cycle modems at midnight    
+    If TimeIntoInterval(5*60-20,24*60,Min) Then
+      ModemOn = False
+    EndIf
+    If TimeIntoInterval(5*60-19,24*60,Min) Then
+      ModemOn = True
+    EndIf
+
+    If ModemOn Then ' Turns modem on
+      SW12 (1)
+      SerialOpen (ComMe,115200,0,0,10000)
+    Else
+      SW12 (0) ' Turns modem off
+      SerialClose (ComMe)
+    EndIf
