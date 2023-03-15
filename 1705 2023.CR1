@@ -108,7 +108,31 @@ Units PAR_V=V
 
 
 'Define Data Tables.
-Include "tables.cr1"
+DataTable(Table10,true,-1)
+   OpenInterval
+   DataInterval(0,10,Min,10)
+   Average(1,AirTemp,FP2, 0)
+   Average(1,RelHum,FP2,0)
+   Average(1,WaterTemp,FP2, 0)
+   Maximum(1,AirTemp,FP2,0,False)
+   Minimum(1,AirTemp,FP2,0,False)
+   Sample(1,Buoy_Dir,FP2)
+   Sample (1,PAR,FP2)
+   WindVector(1, Windspeed, WDCalcul, FP2, 0, 0, 0, 2)
+   FieldNames("MeanWS,VectorWS,VectorWD,StDevWD")
+   Maximum(1,Windspeed,FP2,0,False)
+   Sample(1,BarPress,FP2)
+EndTable
+
+DataTable(Table60,true,-1)
+   OpenInterval
+   DataInterval(0,60,Min,10)
+   Sample(1,PanTemp,FP2)
+   Sample(1,LoggerVolt,FP2)
+   Sample(1,Sig,FP2)
+   Sample(1,LoggerID,Long)
+   Sample(1,BattVolt,FP2)
+EndTable
 
 'Main Program
 BeginProg
@@ -152,14 +176,60 @@ BeginProg
     Sig = Status.ProgSignature(1,1)/1000
     LoggerID = Status.SerialNumber
 
-    Include "modem_cell.cr1"
+     'Power cycle modems at midnight    
+    If TimeIntoInterval(5*60-20,24*60,Min) Then
+      ModemOn = False
+    EndIf
+    If TimeIntoInterval(5*60-19,24*60,Min) Then
+      ModemOn = True
+    EndIf
+
+    If ModemOn Then ' Turns modem on
+      SW12 (1)
+      SerialOpen (ComMe,115200,0,0,10000)
+    Else
+      SW12 (0) ' Turns modem off
+      SerialClose (ComMe)
+    EndIf
 
     'Call Output Tables
     CallTable (Table10)
     CallTable (Table60)
   NextScan
 
-  Include "compass.cr1"
+  SlowSequence '**************************** Compass *****************************************
+
+  'Public CompStr As String
+  Public DirStr As String
+  Public PRStr As String
+
+  SerialOpen (Com1,9600,0,0,100)
+  SerialOut (Com1,"h" + CHR(13),":",0,STIMEOUT)
+  Delay (1,1000,mSec)
+  SerialOut (Com1,"sdo=t" + CHR(13),":",0,STIMEOUT)
+  SerialClose (Com1)
+
+  Scan (5,sec,3,0)
+    ' Read TCM2, Input C2
+    SerialOpen (Com1,9600,0,0,100)
+
+    SerialOut (Com1,"c?" + CHR(13),":",0,STIMEOUT)
+    SerialIn (DirStr,Com1,STIMEOUT,CHR(13),50)'Take measurement
+
+    'SerialFlush(Com1)
+    'SerialOut (Com1,"i?" + CHR(13),":",0,STIMEOUT) '
+    'SerialIn (PRStr,Com1,STIMEOUT,CHR(13),50)'Take measurement
+
+    SerialClose (Com1)
+
+    SplitStr(DirStr,DirStr,"E",1,5)
+    SplitStr(PRStr,PRStr,"E",1,5)
+
+    SplitStr (Buoy_Dir,DirStr,"$C",1,4)
+    'SplitStr (Roll,PRStr,"R",1,4)
+    'SplitStr (Pitch,PRStr,"$P",1,4)
+    'CallTable (TableCompass)
+  NextScan
+  EndSequence '**************************** Compass *****************************************
 
 EndProg
-
